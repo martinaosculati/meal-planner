@@ -37,8 +37,8 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
     setSuggestedRecipe(null);
 
     try {
-      // Chiama il Cloudflare Worker
-      const response = await fetch('https://meal-planner-worker.martinaosculati.workers.dev/chat', {
+      // Chiama il backend Node.js su Render
+      const response = await fetch('https://meal-planner-backend.onrender.com/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
       const errorMessage = {
         id: messages.length + 2,
         type: 'assistant',
-        text: `❌ Errore: ${error.message}. Il server potrebbe non essere disponibile. Riprova!`,
+        text: `❌ Errore: ${error.message}. Assicurati che il backend sia deployato su Render!`,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
