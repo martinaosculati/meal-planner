@@ -561,4 +561,136 @@ export const initialRecipes = [
 8. Cuoci per 25-30 minuti fino a che il tortino è solidificato.`,
     note: 'Tortino proteico e nutriente. Perfetto sia caldo che freddo.',
   },
+
+  // RICETTE NUOVE - COMBINAZIONI COMUNI (5 ricette)
+  {
+    id: '23',
+    nome: 'Zucchine e feta al forno',
+    tipo: 'formaggi',
+    ingredienti: [
+      { nome: 'Zucchine', quantita: 400, unita: 'g' },
+      { nome: 'Feta', quantita: 200, unita: 'g' },
+      { nome: 'Pomodori', quantita: 200, unita: 'g' },
+      { nome: 'Cipolla', quantita: 80, unita: 'g' },
+      { nome: 'Olio d\'oliva', quantita: 30, unita: 'ml' },
+      { nome: 'Origano', quantita: 5, unita: 'g' },
+    ],
+    tempo: 30,
+    difficolta: 'facile',
+    kcal: 320,
+    istruzioni: `1. Preriscalda il forno a 200°C.
+2. Taglia le zucchine a rondelle e i pomodori a cubetti.
+3. Trita la cipolla finemente.
+4. In una teglia, disponi zucchine, pomodori e cipolla.
+5. Condisci con olio d'oliva, sale, pepe e origano.
+6. Inforna per 15 minuti.
+7. Aggiungi la feta sbriciolata sopra.
+8. Inforna per altri 10-15 minuti fino a doratura.`,
+    note: 'Classico abbinamento greco. La feta si scioglie leggermente con il calore.',
+  },
+
+  {
+    id: '24',
+    nome: 'Pollo con pomodori e basilico',
+    tipo: 'carne',
+    ingredienti: [
+      { nome: 'Pollo (petto)', quantita: 400, unita: 'g' },
+      { nome: 'Pomodori', quantita: 300, unita: 'g' },
+      { nome: 'Cipolla', quantita: 100, unita: 'g' },
+      { nome: 'Aglio', quantita: 15, unita: 'g' },
+      { nome: 'Basilico fresco', quantita: 15, unita: 'g' },
+      { nome: 'Olio d\'oliva', quantita: 25, unita: 'ml' },
+    ],
+    tempo: 25,
+    difficolta: 'facile',
+    kcal: 380,
+    istruzioni: `1. Taglia il pollo a pezzetti medi.
+2. Soffriggi cipolla e aglio in olio d'oliva.
+3. Aggiungi il pollo e rosola bene.
+4. Taglia i pomodori a cubetti e aggiungili.
+5. Cuoci a fuoco medio per 15 minuti.
+6. Aggiungi il basilico fresco.
+7. Assaggia e aggiusta di sale.
+8. Servi caldo.`,
+    note: 'Piatto semplice e profumato. Perfetto con pasta o riso.',
+  },
+
+  {
+    id: '25',
+    nome: 'Peperoni ripieni di ricotta e verdure',
+    tipo: 'formaggi',
+    ingredienti: [
+      { nome: 'Peperoni rossi', quantita: 400, unita: 'g' },
+      { nome: 'Ricotta light', quantita: 250, unita: 'g' },
+      { nome: 'Spinaci freschi', quantita: 150, unita: 'g' },
+      { nome: 'Pomodori pelati', quantita: 200, unita: 'g' },
+      { nome: 'Parmigiano', quantita: 50, unita: 'g' },
+      { nome: 'Olio d\'oliva', quantita: 20, unita: 'ml' },
+    ],
+    tempo: 40,
+    difficolta: 'media',
+    kcal: 340,
+    istruzioni: `1. Preriscalda il forno a 190°C.
+2. Taglia il "coperchio" dei peperoni e rimuovi i semi.
+3. Cuoci gli spinaci leggermente e trita.
+4. Mescola ricotta, spinaci e parmigiano.
+5. Riempi i peperoni del mix.
+6. Disponi i peperoni in una teglia con olio.
+7. Versa i pomodori pelati intorno.
+8. Inforna per 35-40 minuti.`,
+    note: 'Piatto colorato e nutritivo. Perfetto per una cena completa.',
+  },
+
+  {
+    id: '26',
+    nome: 'Spaghetti integrali con aglio, olio e peperoncino',
+    tipo: 'vegetariano',
+    ingredienti: [
+      { nome: 'Pasta integrale', quantita: 80, unita: 'g' },
+      { nome: 'Aglio', quantita: 30, unita: 'g' },
+      { nome: 'Peperoncino', quantita: 3, unita: 'pz' },
+      { nome: 'Prezzemolo fresco', quantita: 20, unita: 'g' },
+      { nome: 'Olio d\'oliva', quantita: 40, unita: 'ml' },
+      { nome: 'Sale', quantita: 5, unita: 'g' },
+    ],
+    tempo: 15,
+    difficolta: 'facile',
+    kcal: 380,
+    istruzioni: `1. Porta a ebollizione una pentola d'acqua salata.
+2. Cuoci la pasta integrale secondo le istruzioni.
+3. Nel frattempo, trita l'aglio e il peperoncino.
+4. Scalda l'olio in una padella grande.
+5. Aggiungi aglio e peperoncino, cuoci 1 minuto.
+6. Scola la pasta e aggiungila alla padella.
+7. Mescola bene per coprire d'olio.
+8. Finisci con prezzemolo fresco.`,
+    note: 'Classico italiano semplice e veloce. Perfetto per una cena veloce.',
+  },
+
+  {
+    id: '27',
+    nome: 'Melanzane alla parmigiana light',
+    tipo: 'vegetariano',
+    ingredienti: [
+      { nome: 'Melanzane', quantita: 500, unita: 'g' },
+      { nome: 'Pomodori pelati', quantita: 300, unita: 'g' },
+      { nome: 'Ricotta light', quantita: 200, unita: 'g' },
+      { nome: 'Mozzarella light', quantita: 150, unita: 'g' },
+      { nome: 'Parmigiano', quantita: 50, unita: 'g' },
+      { nome: 'Olio d\'oliva', quantita: 30, unita: 'ml' },
+    ],
+    tempo: 45,
+    difficolta: 'media',
+    kcal: 320,
+    istruzioni: `1. Preriscalda il forno a 190°C.
+2. Taglia le melanzane a fette spesse.
+3. Disponi su una teglia, salala leggermente.
+4. Cuoci al forno per 15 minuti.
+5. In una ciotola, mescola ricotta, mozzarella e parmigiano.
+6. In un'altra teglia, versa un po' di pomodori.
+7. Strato: melanzane, ricotta, pomodori. Ripeti.
+8. Finisci con mozzarella e parmigiano.
+9. Inforna per 25-30 minuti.`,
+    note: 'Versione light della parmigiana classica con ricotta.',
+  },
 ];
