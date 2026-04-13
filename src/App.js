@@ -51,6 +51,7 @@ function App() {
     if (savedServings) {
       setServings(parseInt(savedServings));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Salva dati in localStorage

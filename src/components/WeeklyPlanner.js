@@ -158,7 +158,7 @@ function WeeklyPlanner({
 }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [servings, setServings] = useState(2);
+  const servings = 2;
 
   const handleRecipeClick = (recipe) => {
     setSelectedRecipe(recipe);
