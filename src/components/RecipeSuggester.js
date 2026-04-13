@@ -21,44 +21,6 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
     scrollToBottom();
   }, [messages]);
 
-  const findMatchingRecipes = (userQuery) => {
-    // Analizza la query e trova ricette che corrispondono
-    const queryLower = userQuery.toLowerCase();
-    
-    const matches = recipes
-      .map((recipe) => {
-        let score = 0;
-
-        // Controlla ingredienti
-        recipe.ingredienti.forEach((ing) => {
-          if (queryLower.includes(ing.nome.toLowerCase())) {
-            score += 2;
-          }
-        });
-
-        // Controlla tipo
-        if (queryLower.includes('pesce') && recipe.tipo === 'pesce') score += 3;
-        if (queryLower.includes('legumi') && recipe.tipo === 'legumi') score += 3;
-        if (queryLower.includes('carne') && recipe.tipo === 'carne') score += 3;
-        if (queryLower.includes('formaggio') && recipe.tipo === 'formaggi') score += 3;
-        if (queryLower.includes('verdura') && recipe.tipo === 'vegetariano') score += 3;
-
-        // Controlla preferenze
-        if (queryLower.includes('leggero') && recipe.kcal < 350) score += 2;
-        if (queryLower.includes('veloce') && recipe.tempo < 25) score += 2;
-        if (queryLower.includes('facile') && recipe.difficolta === 'facile') score += 2;
-        if (queryLower.includes('forno') && recipe.istruzioni.includes('forno')) score += 1;
-        if (queryLower.includes('padella') && recipe.istruzioni.includes('padella')) score += 1;
-
-        return { ...recipe, matchScore: score };
-      })
-      .filter((r) => r.matchScore > 0)
-      .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, 3);
-
-    return matches;
-  };
-
   const handleSend = async () => {
     if (!input.trim()) return;
 
