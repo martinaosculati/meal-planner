@@ -4,10 +4,13 @@ import html2canvas from 'html2canvas';
 
 function ShoppingList({
   ingredients,
-  weeklyPlan,
+  servings,
+  onServingsChange,
   days,
+  meals,
   eatingOut,
   getRecipeById,
+  weeklyPlan,
 }) {
   const [checkedItems, setCheckedItems] = useState({});
 
@@ -16,19 +19,21 @@ function ShoppingList({
       'Pesce e Frutti di Mare': [],
       'Verdure': [],
       'Frutta': [],
-      'Latticini': [],
+      'Latticini e Uova': [],
       'Oli e Condimenti': [],
       'Spezie e Aromi': [],
+      'Pasta e Cereali': [],
       'Altro': [],
     };
 
     const categoryKeywords = {
       'Pesce e Frutti di Mare': ['pesce', 'salmone', 'branzino', 'merluzzo', 'orata', 'trota', 'sgombro', 'tonno', 'gamberoni', 'polpo', 'cozze', 'spigola'],
       'Verdure': ['zucchine', 'pomodori', 'carote', 'sedano', 'cipolla', 'aglio', 'melanzane', 'asparagi', 'broccoli', 'spinaci', 'lattuga', 'cavolo', 'peperoni', 'cetriolo', 'cavolfiore'],
-      'Frutta': ['limone', 'mela', 'banana', 'arancia'],
-      'Latticini': ['mozzarella', 'parmigiano', 'ricotta', 'burro'],
+      'Frutta': ['limone', 'mela', 'banana', 'arancia', 'limoni'],
+      'Latticini e Uova': ['mozzarella', 'parmigiano', 'ricotta', 'burro', 'latte', 'uova'],
       'Oli e Condimenti': ['olio', 'sale', 'aceto', 'vino'],
       'Spezie e Aromi': ['basilico', 'prezzemolo', 'rosmarino', 'erbe', 'spezie', 'curcuma', 'paprika', 'peperoncino'],
+      'Pasta e Cereali': ['pasta', 'riso', 'orzo', 'quinoa', 'lenticchie'],
     };
 
     Object.keys(ingredients).forEach((key) => {
@@ -75,14 +80,14 @@ function ShoppingList({
       heightLeft -= 297;
     }
 
-    pdf.save('lista-spesa.pdf');
+    pdf.save(`lista-spesa-${servings}persone.pdf`);
   };
 
   const copyToClipboard = () => {
     const text = Object.keys(ingredients)
       .map((key) => {
         const ing = ingredients[key];
-        return `${ing.nome} - ${ing.quantita} ${ing.unita}`;
+        return `${ing.nome} - ${ing.quantita.toFixed(1)} ${ing.unita}`;
       })
       .join('\n');
 
@@ -93,13 +98,58 @@ function ShoppingList({
   const categories = groupIngredientsByCategory();
   const totalItems = Object.keys(ingredients).length;
 
+  // Conteggio pasti pianificati
+  const mealsPlanCount = days.reduce(
+    (sum, day) =>
+      sum + meals.filter((meal) => !eatingOut[`${day}-${meal}`]).length,
+    0
+  );
+
   return (
     <div className="shopping-list">
-      <div style={{ marginBottom: '30px' }}>
-        <h2>🛒 Lista della Spesa</h2>
-        <p style={{ color: '#666', marginTop: '10px' }}>
-          Totale ingredienti: <strong>{totalItems}</strong> | Pasti pianificati: <strong>{days.filter((d) => !eatingOut[d]).length}</strong>
-        </p>
+      <div style={{ marginBottom: '30px', padding: '20px', background: '#f0f0f0', borderRadius: '8px' }}>
+        <h2 style={{ color: '#667eea', marginBottom: '20px' }}>🛒 Lista della Spesa</h2>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontWeight: '600', color: '#333', display: 'block', marginBottom: '12px' }}>
+            👥 Numero di persone
+          </label>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type="range"
+              min="1"
+              max="8"
+              value={servings}
+              onChange={(e) => onServingsChange(parseInt(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <div style={{
+              background: '#667eea',
+              color: 'white',
+              padding: '10px 15px',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              minWidth: '60px',
+              textAlign: 'center',
+            }}>
+              {servings}
+            </div>
+          </div>
+          <p style={{ color: '#666', fontSize: '0.9em', marginTop: '8px' }}>
+            Quantità ingredienti adattate per {servings} persone
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+          <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
+            <div style={{ color: '#999', fontSize: '0.85em' }}>Ingredienti totali</div>
+            <div style={{ fontSize: '1.3em', fontWeight: 'bold', color: '#667eea' }}>{totalItems}</div>
+          </div>
+          <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
+            <div style={{ color: '#999', fontSize: '0.85em' }}>Pasti pianificati</div>
+            <div style={{ fontSize: '1.3em', fontWeight: 'bold', color: '#667eea' }}>{mealsPlanCount}</div>
+          </div>
+        </div>
       </div>
 
       <div id="shopping-list-content" style={{ marginBottom: '30px' }}>
@@ -132,7 +182,7 @@ function ShoppingList({
                     />
                     <span className="ingredient-name">{ing.nome}</span>
                     <span className="ingredient-quantity">
-                      {ing.quantita} {ing.unita}
+                      {ing.quantita.toFixed(1)} {ing.unita}
                     </span>
                   </div>
                 );

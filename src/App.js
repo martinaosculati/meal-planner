@@ -4,20 +4,24 @@ import { initialRecipes } from './data/recipes';
 import WeeklyPlanner from './components/WeeklyPlanner';
 import ShoppingList from './components/ShoppingList';
 import RecipeForm from './components/RecipeForm';
+import RecipeSuggester from './components/RecipeSuggester';
 
 function App() {
   const [activeTab, setActiveTab] = useState('planner');
   const [recipes, setRecipes] = useState([]);
   const [weeklyPlan, setWeeklyPlan] = useState({});
   const [eatingOut, setEatingOut] = useState({});
+  const [servings, setServings] = useState(2); // Numero persone
 
   const days = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+  const meals = ['pranzo', 'cena'];
 
   // Carica dati da localStorage
   useEffect(() => {
     const savedRecipes = localStorage.getItem('recipes');
     const savedPlan = localStorage.getItem('weeklyPlan');
     const savedEatingOut = localStorage.getItem('eatingOut');
+    const savedServings = localStorage.getItem('servings');
 
     if (savedRecipes) {
       setRecipes(JSON.parse(savedRecipes));
@@ -32,14 +36,20 @@ function App() {
       const initialPlan = {};
       const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
       daysOfWeek.forEach((day) => {
-        const randomRecipe = initialRecipes[Math.floor(Math.random() * initialRecipes.length)];
-        initialPlan[day] = randomRecipe.id;
+        meals.forEach((meal) => {
+          const randomRecipe = initialRecipes[Math.floor(Math.random() * initialRecipes.length)];
+          initialPlan[`${day}-${meal}`] = randomRecipe.id;
+        });
       });
       setWeeklyPlan(initialPlan);
     }
 
     if (savedEatingOut) {
       setEatingOut(JSON.parse(savedEatingOut));
+    }
+
+    if (savedServings) {
+      setServings(parseInt(savedServings));
     }
   }, []);
 
@@ -56,6 +66,10 @@ function App() {
     localStorage.setItem('eatingOut', JSON.stringify(eatingOut));
   }, [eatingOut]);
 
+  useEffect(() => {
+    localStorage.setItem('servings', servings.toString());
+  }, [servings]);
+
   const addRecipe = (newRecipe) => {
     const recipe = {
       ...newRecipe,
@@ -64,17 +78,18 @@ function App() {
     setRecipes([...recipes, recipe]);
   };
 
-  const updateRecipe = (day, recipeId) => {
+  const updateRecipe = (day, meal, recipeId) => {
     setWeeklyPlan({
       ...weeklyPlan,
-      [day]: recipeId,
+      [`${day}-${meal}`]: recipeId,
     });
   };
 
-  const toggleEatingOut = (day) => {
+  const toggleEatingOut = (day, meal) => {
+    const key = `${day}-${meal}`;
     setEatingOut({
       ...eatingOut,
-      [day]: !eatingOut[day],
+      [key]: !eatingOut[key],
     });
   };
 
@@ -86,20 +101,28 @@ function App() {
     const ingredients = {};
 
     days.forEach((day) => {
-      if (!eatingOut[day]) {
-        const recipeId = weeklyPlan[day];
-        const recipe = getRecipeById(recipeId);
-        if (recipe) {
-          recipe.ingredienti.forEach((ing) => {
-            const key = `${ing.nome}|${ing.unita}`;
-            if (ingredients[key]) {
-              ingredients[key].quantita += ing.quantita;
-            } else {
-              ingredients[key] = { ...ing };
-            }
-          });
+      meals.forEach((meal) => {
+        const key = `${day}-${meal}`;
+        if (!eatingOut[key]) {
+          const recipeId = weeklyPlan[key];
+          const recipe = getRecipeById(recipeId);
+          if (recipe) {
+            recipe.ingredienti.forEach((ing) => {
+              const ingredientKey = `${ing.nome}|${ing.unita}`;
+              const scaledQuantity = ing.quantita * (servings / 2); // 2 è la porzione di default
+              if (ingredients[ingredientKey]) {
+                ingredients[ingredientKey].quantita += scaledQuantity;
+              } else {
+                ingredients[ingredientKey] = {
+                  nome: ing.nome,
+                  quantita: scaledQuantity,
+                  unita: ing.unita,
+                };
+              }
+            });
+          }
         }
-      }
+      });
     });
 
     return ingredients;
@@ -108,8 +131,8 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>🥗 Meal Planner</h1>
-        <p>Pianifica i tuoi pasti settimanali e genera la lista della spesa</p>
+        <h1>🥗 Meal Planner Pro</h1>
+        <p>Pianifica pranzi e cene, genera lista della spesa, scopri ricette dai tuoi ingredienti</p>
       </header>
 
       <div className="tabs">
@@ -126,6 +149,12 @@ function App() {
           🛒 Lista della Spesa
         </button>
         <button
+          className={`tab-button ${activeTab === 'suggester' ? 'active' : ''}`}
+          onClick={() => setActiveTab('suggester')}
+        >
+          🎯 Suggeritore
+        </button>
+        <button
           className={`tab-button ${activeTab === 'recipes' ? 'active' : ''}`}
           onClick={() => setActiveTab('recipes')}
         >
@@ -136,6 +165,7 @@ function App() {
       {activeTab === 'planner' && (
         <WeeklyPlanner
           days={days}
+          meals={meals}
           weeklyPlan={weeklyPlan}
           eatingOut={eatingOut}
           recipes={recipes}
@@ -150,8 +180,18 @@ function App() {
           ingredients={getShoppingListIngredients()}
           weeklyPlan={weeklyPlan}
           days={days}
+          meals={meals}
           eatingOut={eatingOut}
           getRecipeById={getRecipeById}
+          servings={servings}
+          onServingsChange={setServings}
+        />
+      )}
+
+      {activeTab === 'suggester' && (
+        <RecipeSuggester
+          recipes={recipes}
+          onAddRecipe={addRecipe}
         />
       )}
 
@@ -166,3 +206,4 @@ function App() {
 }
 
 export default App;
+

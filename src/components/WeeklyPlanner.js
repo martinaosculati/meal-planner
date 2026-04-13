@@ -1,7 +1,154 @@
 import React, { useState } from 'react';
 
+function RecipeModal({ recipe, isOpen, onClose, servings }) {
+  if (!isOpen || !recipe) return null;
+
+  const scaleQuantity = (qty) => (qty * servings / 2).toFixed(1);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{recipe.nome}</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '15px' }}>
+            <div style={{ background: '#f0f0f0', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
+              <div style={{ color: '#999', fontSize: '0.85em' }}>⏱️ Tempo</div>
+              <div style={{ fontSize: '1.3em', fontWeight: 'bold', color: '#667eea' }}>{recipe.tempo} min</div>
+            </div>
+            <div style={{ background: '#f0f0f0', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
+              <div style={{ color: '#999', fontSize: '0.85em' }}>🔥 Calorie</div>
+              <div style={{ fontSize: '1.3em', fontWeight: 'bold', color: '#667eea' }}>{recipe.kcal}</div>
+            </div>
+            <div style={{ background: '#f0f0f0', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
+              <div style={{ color: '#999', fontSize: '0.85em' }}>📊 Difficoltà</div>
+              <div style={{ fontSize: '1.3em', fontWeight: 'bold', color: '#667eea' }}>{recipe.difficolta}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ color: '#667eea', marginBottom: '12px' }}>📋 Ingredienti (per {servings} persone)</h3>
+          <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
+            {recipe.ingredienti.map((ing, idx) => (
+              <div key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#333' }}>{ing.nome}</span>
+                <span style={{ fontWeight: 'bold', color: '#667eea' }}>
+                  {scaleQuantity(ing.quantita)} {ing.unita}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ color: '#667eea', marginBottom: '12px' }}>👨‍🍳 Istruzioni</h3>
+          <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', lineHeight: '1.8', whiteSpace: 'pre-wrap', color: '#333' }}>
+            {recipe.istruzioni}
+          </div>
+        </div>
+
+        {recipe.note && (
+          <div style={{ background: '#fff3cd', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #ffc107', color: '#856404', marginBottom: '20px' }}>
+            <strong>💡 Nota:</strong> {recipe.note}
+          </div>
+        )}
+
+        <button className="btn btn-secondary" onClick={onClose} style={{ width: '100%' }}>
+          Chiudi
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MealCard({ day, meal, recipe, onRecipeClick, onChangeRecipe, onToggleEatingOut, eatingOut, recipes }) {
+  const key = `${day}-${meal}`;
+  const isOutToday = eatingOut[key];
+  const mealLabel = meal === 'pranzo' ? '🍽️ Pranzo' : '🌙 Cena';
+
+  return (
+    <div style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
+      <div style={{ fontWeight: 'bold', color: '#667eea', marginBottom: '10px' }}>{mealLabel}</div>
+
+      {isOutToday ? (
+        <>
+          <div style={{ background: '#ff6b6b', color: 'white', padding: '8px 12px', borderRadius: '6px', fontSize: '0.9em', fontWeight: 'bold', marginBottom: '10px', display: 'inline-block' }}>
+            🍴 Mangia fuori
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={() => onToggleEatingOut(day, meal)}
+            style={{ width: '100%', marginTop: '10px' }}
+          >
+            Pianifica pasto
+          </button>
+        </>
+      ) : (
+        <>
+          {recipe && (
+            <>
+              <div
+                onClick={() => onRecipeClick(recipe)}
+                style={{
+                  background: '#f5f7fa',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  marginBottom: '10px',
+                  borderLeft: '3px solid #667eea',
+                  transition: 'all 0.3s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '6px' }}>{recipe.nome}</div>
+                <div style={{ fontSize: '0.85em', color: '#666', display: 'flex', gap: '12px' }}>
+                  <span>⏱️ {recipe.tempo}m</span>
+                  <span>🔥 {recipe.kcal}kcal</span>
+                </div>
+              </div>
+
+              <select
+                className="select-recipe"
+                value={recipe.id}
+                onChange={(e) => onChangeRecipe(day, meal, e.target.value)}
+                style={{ marginBottom: '10px', width: '100%', padding: '8px', fontSize: '0.9em' }}
+              >
+                {recipes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nome}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                className="btn btn-secondary"
+                onClick={() => onToggleEatingOut(day, meal)}
+                style={{ width: '100%', fontSize: '0.9em' }}
+              >
+                Mangia fuori
+              </button>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function WeeklyPlanner({
   days,
+  meals,
   weeklyPlan,
   eatingOut,
   recipes,
@@ -9,49 +156,44 @@ function WeeklyPlanner({
   onToggleEatingOut,
   getRecipeById,
 }) {
-  const [swapMode, setSwapMode] = useState(null);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [servings, setServings] = useState(2);
 
-  const handleSwap = (sourceDay) => {
-    if (swapMode === sourceDay) {
-      setSwapMode(null);
-      return;
-    }
-    setSwapMode(sourceDay);
-  };
-
-  const handleSwapConfirm = (targetDay) => {
-    if (swapMode && swapMode !== targetDay) {
-      const temp = weeklyPlan[swapMode];
-      const newPlan = {
-        ...weeklyPlan,
-        [swapMode]: weeklyPlan[targetDay],
-        [targetDay]: temp,
-      };
-      // Aggiorna lo stato immediatamente
-      Object.keys(newPlan).forEach((day) => {
-        onUpdateRecipe(day, newPlan[day]);
-      });
-      setSwapMode(null);
-    }
+  const handleRecipeClick = (recipe) => {
+    setSelectedRecipe(recipe);
+    setIsModalOpen(true);
   };
 
   const totalCalories = days.reduce((sum, day) => {
-    if (eatingOut[day]) return sum;
-    const recipe = getRecipeById(weeklyPlan[day]);
-    return sum + (recipe?.kcal || 0);
+    return (
+      sum +
+      meals.reduce((mealSum, meal) => {
+        const key = `${day}-${meal}`;
+        if (eatingOut[key]) return mealSum;
+        const recipe = getRecipeById(weeklyPlan[key]);
+        return mealSum + (recipe?.kcal || 0);
+      }, 0)
+    );
   }, 0);
 
-  const daysWithMeals = days.filter((day) => !eatingOut[day]).length;
-  const avgCalories = daysWithMeals > 0 ? Math.round(totalCalories / daysWithMeals) : 0;
+  const mealsCount = days.reduce(
+    (sum, day) =>
+      sum +
+      meals.filter((meal) => !eatingOut[`${day}-${meal}`]).length,
+    0
+  );
+
+  const avgCalories = mealsCount > 0 ? Math.round(totalCalories / mealsCount) : 0;
 
   return (
     <div>
       <div style={{ marginBottom: '30px', padding: '20px', background: '#f0f0f0', borderRadius: '8px' }}>
         <h3 style={{ color: '#667eea', marginBottom: '15px' }}>📊 Riepilogo Nutrizionale</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
           <div style={{ background: 'white', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
             <div style={{ color: '#999', fontSize: '0.9em' }}>Pasti questa settimana</div>
-            <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#667eea' }}>{daysWithMeals}</div>
+            <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#667eea' }}>{mealsCount}</div>
           </div>
           <div style={{ background: 'white', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #667eea' }}>
             <div style={{ color: '#999', fontSize: '0.9em' }}>Calorie totali</div>
@@ -64,118 +206,34 @@ function WeeklyPlanner({
         </div>
       </div>
 
-      {swapMode && (
-        <div style={{ marginBottom: '20px', padding: '15px', background: '#fff3cd', borderRadius: '8px', borderLeft: '4px solid #ffc107' }}>
-          <strong>🔄 Modalità Scambio Attiva</strong>
-          <p style={{ margin: '10px 0 0 0', color: '#856404' }}>Clicca su un altro giorno per scambiare le ricette</p>
-        </div>
-      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        {days.map((day) => (
+          <div key={day} style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', padding: '20px', borderRadius: '12px', borderLeft: '5px solid #667eea' }}>
+            <h3 style={{ color: '#667eea', marginBottom: '15px' }}>{day}</h3>
 
-      <div className="weekdays">
-        {days.map((day) => {
-          const recipeId = weeklyPlan[day];
-          const recipe = getRecipeById(recipeId);
-          const isOutToday = eatingOut[day];
-          const isSwapSource = swapMode === day;
-
-          return (
-            <div
-              key={day}
-              className={`day-card ${isSwapSource ? 'swap-source' : ''}`}
-              style={isSwapSource ? { borderLeft: '5px solid #ffc107', background: '#fffacd' } : {}}
-            >
-              <h3>{day}</h3>
-
-              {isOutToday ? (
-                <>
-                  <div className="eat-out-label">🍽️ Mangia fuori</div>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => onToggleEatingOut(day)}
-                    style={{ marginTop: '15px', width: '100%' }}
-                  >
-                    Pianifica pasto
-                  </button>
-                </>
-              ) : (
-                <>
-                  {recipe && (
-                    <div className="day-content">
-                      <div className="recipe-box">
-                        <div className="recipe-name">{recipe.nome}</div>
-                        <div className="recipe-details">
-                          <div className="recipe-detail-item">
-                            <span>⏱️</span>
-                            <span>{recipe.tempo} min</span>
-                          </div>
-                          <div className="recipe-detail-item">
-                            <span>🔥</span>
-                            <span>{recipe.kcal} kcal</span>
-                          </div>
-                          <div className="recipe-detail-item">
-                            <span>📊</span>
-                            <span>{recipe.difficolta}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '15px' }}>
-                        <label htmlFor={`recipe-${day}`} style={{ fontWeight: '600', color: '#333', display: 'block', marginBottom: '8px' }}>
-                          Cambia ricetta:
-                        </label>
-                        <select
-                          id={`recipe-${day}`}
-                          className="select-recipe"
-                          value={recipeId}
-                          onChange={(e) => onUpdateRecipe(day, e.target.value)}
-                        >
-                          {recipes.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.nome}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '15px', flexWrap: 'wrap' }}>
-                        <button
-                          className={`btn btn-secondary ${isSwapSource ? 'active' : ''}`}
-                          onClick={() => handleSwap(day)}
-                          style={{
-                            flex: 1,
-                            minWidth: '120px',
-                            background: isSwapSource ? '#ffc107' : '#f0f0f0',
-                            color: isSwapSource ? '#333' : '#333',
-                          }}
-                        >
-                          {isSwapSource ? '✅ Scambio attivo' : '🔄 Scambia'}
-                        </button>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => onToggleEatingOut(day)}
-                          style={{ flex: 1, minWidth: '120px' }}
-                        >
-                          Fuori stasera
-                        </button>
-                      </div>
-
-                      {swapMode && swapMode !== day && (
-                        <button
-                          className="btn btn-success"
-                          onClick={() => handleSwapConfirm(day)}
-                          style={{ width: '100%', marginTop: '15px' }}
-                        >
-                          ✓ Scambia con {day}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
+            {meals.map((meal) => (
+              <MealCard
+                key={`${day}-${meal}`}
+                day={day}
+                meal={meal}
+                recipe={getRecipeById(weeklyPlan[`${day}-${meal}`])}
+                onRecipeClick={handleRecipeClick}
+                onChangeRecipe={onUpdateRecipe}
+                onToggleEatingOut={onToggleEatingOut}
+                eatingOut={eatingOut}
+                recipes={recipes}
+              />
+            ))}
+          </div>
+        ))}
       </div>
+
+      <RecipeModal
+        recipe={selectedRecipe}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        servings={servings}
+      />
     </div>
   );
 }
