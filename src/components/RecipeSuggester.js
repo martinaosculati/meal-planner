@@ -58,12 +58,13 @@ Se nessuna corrisponde esattamente, suggerisci comunque quella più vicina o pro
 Rispondi in italiano, in modo conversazionale e amichevole. Sii breve (2-3 righe max) e termina sempre con una domanda simpatica.
 Se hai suggerito una ricetta, scrivi il nome esatto della ricetta tra PARENTESI QUADRE alla fine, tipo: [Nome Ricetta Esatta].`;
 
-      // Chiama Claude API direttamente dal frontend
+      // Chiama Claude API tramite Anthropic's API Relay (supporta CORS)
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': 'sk-ant-v3-xUr8xB3fqJU2NxrDqsLkqvILVIpKNBYoZ48-2-LpkNVXDpYUVE9F8I6FIU-AYmzPl-Zl4lbMJ1rAVzm4Qw',
+          'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
