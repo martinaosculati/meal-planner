@@ -30,7 +30,8 @@ function App() {
     } else {
       // Inizializza con ricette casuali
       const initialPlan = {};
-      days.forEach((day) => {
+      const daysOfWeek = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+      daysOfWeek.forEach((day) => {
         const randomRecipe = initialRecipes[Math.floor(Math.random() * initialRecipes.length)];
         initialPlan[day] = randomRecipe.id;
       });

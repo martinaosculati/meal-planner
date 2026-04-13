@@ -10,12 +10,10 @@ function WeeklyPlanner({
   getRecipeById,
 }) {
   const [swapMode, setSwapMode] = useState(null);
-  const [swapTarget, setSwapTarget] = useState(null);
 
   const handleSwap = (sourceDay) => {
     if (swapMode === sourceDay) {
       setSwapMode(null);
-      setSwapTarget(null);
       return;
     }
     setSwapMode(sourceDay);
@@ -34,7 +32,6 @@ function WeeklyPlanner({
         onUpdateRecipe(day, newPlan[day]);
       });
       setSwapMode(null);
-      setSwapTarget(null);
     }
   };
 
