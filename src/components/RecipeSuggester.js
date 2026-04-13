@@ -1,229 +1,300 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 function RecipeSuggester({ recipes, onAddRecipe }) {
-  const [ingredients, setIngredients] = useState('');
-  const [suggestedRecipes, setSuggestedRecipes] = useState([]);
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'assistant',
+      text: 'Ciao! 👋 Sono il tuo assistente culinario intelligente. Dimmi quali ingredienti hai a casa, che tipo di ricetta ti piacerebbe, o semplicemente descrivimi quello che vuoi cucinare e io ti suggerirò la ricetta perfetta! 🍳',
+    },
+  ]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [expandedRecipe, setExpandedRecipe] = useState(null);
+  const [suggestedRecipe, setSuggestedRecipe] = useState(null);
+  const messagesEndRef = useRef(null);
 
-  const calculateMatch = (recipe, userIngredients) => {
-    const userIngsLower = userIngredients
-      .split(',')
-      .map((ing) => ing.trim().toLowerCase())
-      .filter((ing) => ing);
-
-    if (userIngsLower.length === 0) return 0;
-
-    const matchedIngredients = recipe.ingredienti.filter((recipeIng) => {
-      return userIngsLower.some((userIng) =>
-        recipeIng.nome.toLowerCase().includes(userIng) || userIng.includes(recipeIng.nome.toLowerCase())
-      );
-    }).length;
-
-    return Math.round((matchedIngredients / recipe.ingredienti.length) * 100);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSuggest = async () => {
-    if (!ingredients.trim()) {
-      setError('Inserisci almeno un ingrediente');
-      return;
-    }
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
+  const findMatchingRecipes = (userQuery) => {
+    // Analizza la query e trova ricette che corrispondono
+    const queryLower = userQuery.toLowerCase();
+    
+    const matches = recipes
+      .map((recipe) => {
+        let score = 0;
+
+        // Controlla ingredienti
+        recipe.ingredienti.forEach((ing) => {
+          if (queryLower.includes(ing.nome.toLowerCase())) {
+            score += 2;
+          }
+        });
+
+        // Controlla tipo
+        if (queryLower.includes('pesce') && recipe.tipo === 'pesce') score += 3;
+        if (queryLower.includes('legumi') && recipe.tipo === 'legumi') score += 3;
+        if (queryLower.includes('carne') && recipe.tipo === 'carne') score += 3;
+        if (queryLower.includes('formaggio') && recipe.tipo === 'formaggi') score += 3;
+        if (queryLower.includes('verdura') && recipe.tipo === 'vegetariano') score += 3;
+
+        // Controlla preferenze
+        if (queryLower.includes('leggero') && recipe.kcal < 350) score += 2;
+        if (queryLower.includes('veloce') && recipe.tempo < 25) score += 2;
+        if (queryLower.includes('facile') && recipe.difficolta === 'facile') score += 2;
+        if (queryLower.includes('forno') && recipe.istruzioni.includes('forno')) score += 1;
+        if (queryLower.includes('padella') && recipe.istruzioni.includes('padella')) score += 1;
+
+        return { ...recipe, matchScore: score };
+      })
+      .filter((r) => r.matchScore > 0)
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 3);
+
+    return matches;
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    // Aggiungi messaggio utente
+    const userMessage = {
+      id: messages.length + 1,
+      type: 'user',
+      text: input,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
     setLoading(true);
-    setError('');
-    setSuggestedRecipes([]);
+    setSuggestedRecipe(null);
 
     try {
-      // Filtra ricette con match >= 70%
-      const matches = recipes
-        .map((recipe) => ({
-          ...recipe,
-          matchPercentage: calculateMatch(recipe, ingredients),
-        }))
-        .filter((recipe) => recipe.matchPercentage >= 70)
-        .sort((a, b) => b.matchPercentage - a.matchPercentage)
-        .slice(0, 3);
+      // Trova ricette corrispondenti
+      const matchedRecipes = findMatchingRecipes(input);
 
-      if (matches.length === 0) {
-        setError('❌ Nessuna ricetta trovata con almeno il 70% degli ingredienti che hai. Prova con ingredienti diversi!');
-        setLoading(false);
-        return;
+      // Crea un prompt intelligente per Claude
+      const recipesContext = matchedRecipes
+        .map(
+          (r) =>
+            `- ${r.nome} (${r.kcal} kcal, ${r.tempo} min, ${r.difficolta}): ${r.ingredienti
+              .map((i) => i.nome)
+              .join(', ')}`
+        )
+        .join('\n');
+
+      const systemPrompt = `Sei un assistente culinario entusiasta e creativo. L'utente ti dice quali ingredienti ha o cosa vuole cucinare.
+      
+Sulla base di quello che dice, suggerisci ricette dal database disponibile:
+${recipesContext}
+
+Se le ricette disponibili corrispondono a quello che chiede, consiglia quella più adatta spiegando perché è perfetta.
+Se nessuna corrisponde esattamente, suggerisci comunque quella più vicina o proponi una variazione creativa.
+
+Rispondi in italiano, in modo conversazionale e amichevole. Sii breve (2-3 righe max) e termina sempre con una domanda simpatica.
+Se hai suggerito una ricetta, scrivi il nome esatto della ricetta tra PARENTESI QUADRE alla fine, tipo: [Nome Ricetta Esatta].`;
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 300,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: input,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore API Claude');
       }
 
-      setSuggestedRecipes(matches);
-    } catch (err) {
-      setError(`❌ Errore: ${err.message}`);
+      const data = await response.json();
+      const assistantText = data.content[0].text;
+
+      // Estrai il nome della ricetta se presente
+      const recipeMatch = assistantText.match(/\[([^\]]+)\]/);
+      if (recipeMatch) {
+        const recipeName = recipeMatch[1];
+        const foundRecipe = recipes.find(
+          (r) => r.nome.toLowerCase() === recipeName.toLowerCase()
+        );
+        if (foundRecipe) {
+          setSuggestedRecipe(foundRecipe);
+        }
+      }
+
+      // Aggiungi risposta assistant
+      const assistantMessage = {
+        id: messages.length + 2,
+        type: 'assistant',
+        text: assistantText,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage = {
+        id: messages.length + 2,
+        type: 'assistant',
+        text: `❌ Errore: ${error.message}. Riprova!`,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleAddRecipe = () => {
+    if (suggestedRecipe) {
+      alert(
+        `✅ Ricetta "${suggestedRecipe.nome}" aggiunta al pianificatore! Vai al tab Pianificatore per usarla.`
+      );
+      setSuggestedRecipe(null);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      handleSuggest();
+      e.preventDefault();
+      handleSend();
     }
   };
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px', padding: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '12px', color: 'white' }}>
-        <h2 style={{ color: 'white', marginBottom: '15px' }}>🎯 Suggeritore di Ricette Intelligente</h2>
-        <p style={{ marginBottom: '20px', color: '#f0f0f0', lineHeight: '1.6' }}>
-          Scrivi gli ingredienti che hai in casa (separati da virgola) e scopri le migliori ricette che puoi preparare subito!
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '12px', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderBottom: '2px solid rgba(255,255,255,0.2)', color: 'white' }}>
+        <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5em' }}>🤖 Assistente Culinario Intelligente</h2>
+        <p style={{ margin: 0, color: '#f0f0f0', fontSize: '0.95em' }}>Dimmi cosa vuoi cucinare e ti suggerirò la ricetta perfetta!</p>
+      </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ fontWeight: '600', color: 'white', display: 'block', marginBottom: '8px' }}>
-            📝 Ingredienti disponibili
-          </label>
-          <textarea
-            value={ingredients}
-            onChange={(e) => setIngredients(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Es: salmone, asparagi, limone, aglio, olio d'oliva..."
+      {/* Chat Messages */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
             style={{
-              width: '100%',
+              display: 'flex',
+              justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+              marginBottom: '8px',
+            }}
+          >
+            <div
+              style={{
+                maxWidth: '70%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                background: msg.type === 'user' ? '#51cf66' : 'rgba(255,255,255,0.95)',
+                color: msg.type === 'user' ? 'white' : '#333',
+                lineHeight: '1.5',
+                wordWrap: 'break-word',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              }}
+            >
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {/* Ricetta Suggerita */}
+        {suggestedRecipe && (
+          <div
+            style={{
+              background: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              marginTop: '12px',
+              borderLeft: '4px solid #667eea',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ fontWeight: 'bold', color: '#667eea', fontSize: '1.05em', marginBottom: '8px' }}>
+              ✅ {suggestedRecipe.nome}
+            </div>
+            <div style={{ fontSize: '0.9em', color: '#666', display: 'flex', gap: '15px', marginBottom: '12px' }}>
+              <span>⏱️ {suggestedRecipe.tempo} min</span>
+              <span>🔥 {suggestedRecipe.kcal} kcal</span>
+              <span>📊 {suggestedRecipe.difficolta}</span>
+            </div>
+            <button
+              className="btn btn-success"
+              onClick={handleAddRecipe}
+              style={{ width: '100%', fontSize: '0.95em' }}
+            >
+              ➕ Aggiungi al Pianificatore
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '12px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.95)', padding: '12px 16px', borderRadius: '12px' }}>
+              <span style={{ color: '#667eea', fontWeight: 'bold' }}>⏳ Claude sta pensando...</span>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: '20px', borderTop: '2px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Dimmi quali ingredienti hai o cosa vuoi cucinare... (Shift+Enter per andare a capo)"
+            style={{
+              flex: 1,
               padding: '12px',
               borderRadius: '8px',
               border: 'none',
-              fontSize: '1em',
+              fontSize: '0.95em',
               fontFamily: 'inherit',
-              minHeight: '80px',
-              background: 'white',
-              color: '#333',
+              minHeight: '50px',
               resize: 'vertical',
+              maxHeight: '120px',
             }}
+            disabled={loading}
           />
-          <p style={{ fontSize: '0.85em', color: '#f0f0f0', marginTop: '8px' }}>💡 Premi Enter per cercare</p>
+          <button
+            className="btn btn-success"
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            style={{
+              padding: '12px 20px',
+              alignSelf: 'flex-end',
+              fontSize: '1em',
+              minWidth: '80px',
+              opacity: loading || !input.trim() ? 0.6 : 1,
+            }}
+          >
+            {loading ? '⏳' : '📤'}
+          </button>
         </div>
-
-        <button
-          className="btn btn-success"
-          onClick={handleSuggest}
-          disabled={loading}
-          style={{ width: '100%', fontSize: '1.05em', fontWeight: '600' }}
-        >
-          {loading ? '⏳ Ricerca in corso...' : '🔍 Cerca Ricette'}
-        </button>
-
-        {error && (
-          <div style={{
-            marginTop: '15px',
-            background: '#ff6b6b',
-            color: 'white',
-            padding: '12px',
-            borderRadius: '8px',
-            fontSize: '0.95em',
-          }}>
-            {error}
-          </div>
-        )}
       </div>
-
-      {suggestedRecipes.length > 0 && (
-        <div>
-          <h2 style={{ color: '#667eea', marginBottom: '20px' }}>✨ Ricette Suggerite ({suggestedRecipes.length})</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-            {suggestedRecipes.map((recipe) => (
-              <div
-                key={recipe.id}
-                style={{
-                  background: 'white',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  borderLeft: '5px solid #667eea',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  transition: 'all 0.3s',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-                }}
-              >
-                <div style={{ marginBottom: '12px' }}>
-                  <h3 style={{ color: '#667eea', marginBottom: '8px', fontSize: '1.1em' }}>{recipe.nome}</h3>
-                  <div
-                    style={{
-                      background: '#51cf66',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '0.85em',
-                      fontWeight: 'bold',
-                      display: 'inline-block',
-                    }}
-                  >
-                    ✓ {recipe.matchPercentage}% Match
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    <div style={{ color: '#999', fontSize: '0.8em' }}>⏱️ Tempo</div>
-                    <div style={{ fontWeight: 'bold', color: '#333' }}>{recipe.tempo} min</div>
-                  </div>
-                  <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    <div style={{ color: '#999', fontSize: '0.8em' }}>🔥 Calorie</div>
-                    <div style={{ fontWeight: 'bold', color: '#333' }}>{recipe.kcal}</div>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <div style={{ color: '#999', fontSize: '0.85em', marginBottom: '6px' }}>📋 Ingredienti necessari:</div>
-                  <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '6px', fontSize: '0.85em', color: '#666', maxHeight: '120px', overflowY: 'auto' }}>
-                    {recipe.ingredienti.slice(0, 6).map((ing, idx) => (
-                      <div key={idx} style={{ paddingBottom: '4px' }}>• {ing.nome}</div>
-                    ))}
-                    {recipe.ingredienti.length > 6 && (
-                      <div style={{ fontStyle: 'italic', color: '#999', marginTop: '4px' }}>+ {recipe.ingredienti.length - 6} altri</div>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
-                  style={{ width: '100%', fontSize: '0.95em', marginBottom: '10px' }}
-                >
-                  {expandedRecipe === recipe.id ? '👁️ Nascondi ricetta' : '👨‍🍳 Vedi ricetta'}
-                </button>
-
-                {expandedRecipe === recipe.id && (
-                  <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '2px solid #eee', background: '#f9f9f9', padding: '15px', borderRadius: '6px' }}>
-                    <h4 style={{ color: '#667eea', marginBottom: '10px' }}>📖 Istruzioni:</h4>
-                    <div style={{ fontSize: '0.85em', lineHeight: '1.6', color: '#333' }}>
-                      {recipe.istruzioni.split('\n').map((step, idx) => (
-                        <div key={idx} style={{ marginBottom: '8px' }}>
-                          {step}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!loading && suggestedRecipes.length === 0 && !error && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
-          <p style={{ fontSize: '2em', marginBottom: '10px' }}>🥘</p>
-          <p style={{ fontSize: '1.1em', marginBottom: '8px' }}>Inizia a cercare!</p>
-          <p style={{ fontSize: '0.9em' }}>
-            Scrivi gli ingredienti che hai e scopri le ricette che puoi preparare subito.
-          </p>
-          <p style={{ fontSize: '0.85em', marginTop: '15px', color: '#bbb' }}>
-            Vengono suggerite ricette che usano almeno il 70% degli ingredienti inseriti.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

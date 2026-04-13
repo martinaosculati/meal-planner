@@ -3,7 +3,6 @@ import './App.css';
 import { initialRecipes } from './data/recipes';
 import WeeklyPlanner from './components/WeeklyPlanner';
 import ShoppingList from './components/ShoppingList';
-import RecipeForm from './components/RecipeForm';
 import RecipeSuggester from './components/RecipeSuggester';
 
 function App() {
@@ -155,12 +154,6 @@ function App() {
         >
           🎯 Suggeritore
         </button>
-        <button
-          className={`tab-button ${activeTab === 'recipes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recipes')}
-        >
-          📖 Ricette
-        </button>
       </div>
 
       {activeTab === 'planner' && (
@@ -191,13 +184,6 @@ function App() {
 
       {activeTab === 'suggester' && (
         <RecipeSuggester
-          recipes={recipes}
-          onAddRecipe={addRecipe}
-        />
-      )}
-
-      {activeTab === 'recipes' && (
-        <RecipeForm
           recipes={recipes}
           onAddRecipe={addRecipe}
         />
