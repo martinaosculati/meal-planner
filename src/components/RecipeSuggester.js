@@ -5,12 +5,11 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
     {
       id: 1,
       type: 'assistant',
-      text: 'Ciao! 👋 Sono il tuo assistente culinario intelligente. Dimmi quali ingredienti hai a casa, che tipo di ricetta ti piacerebbe, o semplicemente descrivimi quello che vuoi cucinare e io ti suggerirò la ricetta perfetta! 🍳',
+      text: 'Ciao! 👋 Sono il tuo assistente culinario intelligente. Dimmi quali ingredienti hai a casa, che tipo di ricetta ti piacerebbe, o semplicemente descrivimi quello che vuoi cucinare e io ti suggerirò le ricette perfette! 🍳',
     },
   ]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [suggestedRecipe, setSuggestedRecipe] = useState(null);
+  const [suggestedRecipes, setSuggestedRecipes] = useState([]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -19,9 +18,54 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, suggestedRecipes]);
 
-  const handleSend = async () => {
+  const findMatchingRecipes = (userQuery) => {
+    const queryLower = userQuery.toLowerCase();
+
+    const matches = recipes
+      .map((recipe) => {
+        let score = 0;
+
+        // Ingredienti match
+        recipe.ingredienti.forEach((ing) => {
+          if (queryLower.includes(ing.nome.toLowerCase())) {
+            score += 3;
+          }
+        });
+
+        // Tipo di ricetta
+        if (queryLower.includes('pesce') && recipe.tipo === 'pesce') score += 5;
+        if (queryLower.includes('legumi') && recipe.tipo === 'legumi') score += 5;
+        if (queryLower.includes('carne') && recipe.tipo === 'carne') score += 5;
+        if (queryLower.includes('formaggio') && recipe.tipo === 'formaggi') score += 5;
+        if ((queryLower.includes('verdura') || queryLower.includes('verdure')) && recipe.tipo === 'vegetariano')
+          score += 5;
+
+        // Preferenze
+        if (queryLower.includes('leggero') && recipe.kcal < 350) score += 3;
+        if (queryLower.includes('veloce') && recipe.tempo < 25) score += 3;
+        if (queryLower.includes('rapido') && recipe.tempo < 25) score += 3;
+        if (queryLower.includes('facile') && recipe.difficolta === 'facile') score += 3;
+        if (queryLower.includes('forno') && recipe.istruzioni.toLowerCase().includes('forno')) score += 2;
+        if (queryLower.includes('padella') && recipe.istruzioni.toLowerCase().includes('padella')) score += 2;
+        if (queryLower.includes('semplice') && recipe.difficolta === 'facile') score += 2;
+
+        // Bonus per parole chiave
+        if (queryLower.includes('light') && recipe.kcal < 350) score += 2;
+        if (queryLower.includes('proteico') && recipe.kcal > 350) score += 2;
+        if (queryLower.includes('sano') && recipe.tipo !== 'carne') score += 2;
+
+        return { ...recipe, matchScore: score };
+      })
+      .filter((r) => r.matchScore > 0)
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 3);
+
+    return matches;
+  };
+
+  const handleSend = () => {
     if (!input.trim()) return;
 
     // Aggiungi messaggio utente
@@ -32,69 +76,39 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-    setSuggestedRecipe(null);
 
-    try {
-      // Chiama il backend Node.js su Render
-      const response = await fetch('https://meal-planner-backend.onrender.com/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userMessage: input,
-          recipes: recipes,
-        }),
-      });
+    // Trova ricette matching
+    const matches = findMatchingRecipes(input);
+    setSuggestedRecipes(matches);
 
-      if (!response.ok) {
-        throw new Error('Errore dal server');
-      }
+    // Genera risposta assistente
+    let assistantText = '';
 
-      const data = await response.json();
-      const assistantText = data.message;
-
-      // Estrai il nome della ricetta se presente
-      const recipeMatch = assistantText.match(/\[([^\]]+)\]/);
-      if (recipeMatch) {
-        const recipeName = recipeMatch[1];
-        const foundRecipe = recipes.find(
-          (r) => r.nome.toLowerCase() === recipeName.toLowerCase()
-        );
-        if (foundRecipe) {
-          setSuggestedRecipe(foundRecipe);
-        }
-      }
-
-      // Aggiungi risposta assistant
-      const assistantMessage = {
-        id: messages.length + 2,
-        type: 'assistant',
-        text: assistantText,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage = {
-        id: messages.length + 2,
-        type: 'assistant',
-        text: `❌ Errore: ${error.message}. Assicurati che il backend sia deployato su Render!`,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
+    if (matches.length === 0) {
+      assistantText =
+        "Hmm, non ho trovato ricette esatte con quello che hai descritto 😅 Prova a dirmi un ingrediente specifico o un tipo di ricetta (pesce, legumi, verdure, carne, ecc.) e ti aiuterò a trovare qualcosa di delizioso!";
+    } else if (matches.length === 1) {
+      const recipe = matches[0];
+      assistantText = `Perfetto! Ho trovato la ricetta giusta per te: **${recipe.nome}** 🎉 È ${recipe.difficolta}, pronta in ${recipe.tempo} minuti e ha ${recipe.kcal} kcal. Vuoi aggiungerla al tuo pianificatore?`;
+    } else {
+      const names = matches.map((r) => `**${r.nome}**`).join(', ');
+      assistantText = `Bellissimo! Ho trovato ${matches.length} ricette che potrebbero piacerti: ${names}. Guarda le opzioni qui sotto e scegli quella che preferisci! 👇`;
     }
+
+    const assistantMessage = {
+      id: messages.length + 2,
+      type: 'assistant',
+      text: assistantText,
+    };
+
+    setMessages((prev) => [...prev, assistantMessage]);
+    setInput('');
   };
 
-  const handleAddRecipe = () => {
-    if (suggestedRecipe) {
-      alert(
-        `✅ Ricetta "${suggestedRecipe.nome}" aggiunta al pianificatore! Vai al tab Pianificatore per usarla.`
-      );
-      setSuggestedRecipe(null);
-    }
+  const handleAddRecipe = (recipe) => {
+    onAddRecipe(recipe);
+    alert(`✅ Ricetta "${recipe.nome}" aggiunta al pianificatore! Vai al tab Pianificatore per usarla.`);
+    setSuggestedRecipes([]);
   };
 
   const handleKeyPress = (e) => {
@@ -105,11 +119,27 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '12px', overflow: 'hidden' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+      }}
+    >
       {/* Header */}
-      <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderBottom: '2px solid rgba(255,255,255,0.2)', color: 'white' }}>
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.1)',
+          padding: '20px',
+          borderBottom: '2px solid rgba(255,255,255,0.2)',
+          color: 'white',
+        }}
+      >
         <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5em' }}>🤖 Assistente Culinario Intelligente</h2>
-        <p style={{ margin: 0, color: '#f0f0f0', fontSize: '0.95em' }}>Dimmi cosa vuoi cucinare e ti suggerirò la ricetta perfetta!</p>
+        <p style={{ margin: 0, color: '#f0f0f0', fontSize: '0.95em' }}>Dimmi cosa vuoi cucinare e ti suggerirò le ricette perfette!</p>
       </div>
 
       {/* Chat Messages */}
@@ -149,41 +179,49 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
           </div>
         ))}
 
-        {/* Ricetta Suggerita */}
-        {suggestedRecipe && (
-          <div
-            style={{
-              background: 'white',
-              padding: '16px',
-              borderRadius: '12px',
-              marginTop: '12px',
-              borderLeft: '4px solid #667eea',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            }}
-          >
-            <div style={{ fontWeight: 'bold', color: '#667eea', fontSize: '1.05em', marginBottom: '8px' }}>
-              ✅ {suggestedRecipe.nome}
-            </div>
-            <div style={{ fontSize: '0.9em', color: '#666', display: 'flex', gap: '15px', marginBottom: '12px' }}>
-              <span>⏱️ {suggestedRecipe.tempo} min</span>
-              <span>🔥 {suggestedRecipe.kcal} kcal</span>
-              <span>📊 {suggestedRecipe.difficolta}</span>
-            </div>
-            <button
-              className="btn btn-success"
-              onClick={handleAddRecipe}
-              style={{ width: '100%', fontSize: '0.95em' }}
-            >
-              ➕ Aggiungi al Pianificatore
-            </button>
-          </div>
-        )}
-
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '12px' }}>
-            <div style={{ background: 'rgba(255,255,255,0.95)', padding: '12px 16px', borderRadius: '12px' }}>
-              <span style={{ color: '#667eea', fontWeight: 'bold' }}>⏳ Claude sta pensando...</span>
-            </div>
+        {/* Ricette Suggerite */}
+        {suggestedRecipes.length > 0 && (
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {suggestedRecipes.map((recipe) => (
+              <div
+                key={recipe.id}
+                style={{
+                  background: 'white',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  borderLeft: '4px solid #667eea',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#667eea', fontSize: '1.05em', marginBottom: '8px' }}>
+                  ✅ {recipe.nome}
+                </div>
+                <div style={{ fontSize: '0.85em', color: '#666', display: 'flex', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <span>⏱️ {recipe.tempo} min</span>
+                  <span>🔥 {recipe.kcal} kcal</span>
+                  <span>📊 {recipe.difficolta}</span>
+                </div>
+                <button
+                  onClick={() => handleAddRecipe(recipe)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.target.style.transform = 'scale(1.02)')}
+                  onMouseLeave={(e) => (e.target.style.transform = 'scale(1)')}
+                >
+                  ➕ Aggiungi al Pianificatore
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -209,21 +247,31 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
               resize: 'vertical',
               maxHeight: '120px',
             }}
-            disabled={loading}
           />
           <button
-            className="btn btn-success"
             onClick={handleSend}
-            disabled={loading || !input.trim()}
+            disabled={!input.trim()}
             style={{
               padding: '12px 20px',
               alignSelf: 'flex-end',
-              fontSize: '1em',
-              minWidth: '80px',
-              opacity: loading || !input.trim() ? 0.6 : 1,
+              fontSize: '1.2em',
+              minWidth: '60px',
+              background: !input.trim() ? '#ccc' : '#51cf66',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              cursor: !input.trim() ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              if (input.trim()) e.target.style.background = '#40c057';
+            }}
+            onMouseLeave={(e) => {
+              if (input.trim()) e.target.style.background = '#51cf66';
             }}
           >
-            {loading ? '⏳' : '📤'}
+            📤
           </button>
         </div>
       </div>
