@@ -22,39 +22,51 @@ function RecipeSuggester({ recipes, onAddRecipe }) {
 
   const findMatchingRecipes = (userQuery) => {
     const queryLower = userQuery.toLowerCase();
+    const queryWords = queryLower.split(/[\s,]+/).filter((w) => w.length > 2);
 
     const matches = recipes
       .map((recipe) => {
         let score = 0;
+        let ingredientMatches = 0;
 
-        // Ingredienti match
+        // Ingredienti match - controlla sia ingredienti specifici che generici
         recipe.ingredienti.forEach((ing) => {
-          if (queryLower.includes(ing.nome.toLowerCase())) {
-            score += 3;
-          }
+          const ingNameLower = ing.nome.toLowerCase();
+          queryWords.forEach((word) => {
+            if (ingNameLower.includes(word) || word.includes(ingNameLower)) {
+              score += 5;
+              ingredientMatches += 1;
+            }
+          });
         });
 
-        // Tipo di ricetta
-        if (queryLower.includes('pesce') && recipe.tipo === 'pesce') score += 5;
-        if (queryLower.includes('legumi') && recipe.tipo === 'legumi') score += 5;
-        if (queryLower.includes('carne') && recipe.tipo === 'carne') score += 5;
-        if (queryLower.includes('formaggio') && recipe.tipo === 'formaggi') score += 5;
-        if ((queryLower.includes('verdura') || queryLower.includes('verdure')) && recipe.tipo === 'vegetariano')
-          score += 5;
+        // Se nessun ingrediente corrisponde ma la query è un tipo di ricetta, riduci il peso
+        if (ingredientMatches === 0 && queryWords.length > 0) {
+          // Controlla solo se la ricetta è esplicitamente di quel tipo
+          if (queryLower.includes('pesce') && recipe.tipo === 'pesce') score += 3;
+          else if (queryLower.includes('legumi') && recipe.tipo === 'legumi') score += 3;
+          else if (queryLower.includes('carne') && recipe.tipo === 'carne') score += 3;
+          else if (queryLower.includes('formaggio') && recipe.tipo === 'formaggi') score += 3;
+          else if ((queryLower.includes('verdura') || queryLower.includes('verdure')) && recipe.tipo === 'vegetariano')
+            score += 3;
+          else {
+            // Se nessun match, dai solo un piccolo bonus casuale
+            score = 0;
+          }
+        }
 
         // Preferenze
         if (queryLower.includes('leggero') && recipe.kcal < 350) score += 3;
         if (queryLower.includes('veloce') && recipe.tempo < 25) score += 3;
         if (queryLower.includes('rapido') && recipe.tempo < 25) score += 3;
-        if (queryLower.includes('facile') && recipe.difficolta === 'facile') score += 3;
+        if (queryLower.includes('facile') && recipe.difficolta === 'facile') score += 2;
         if (queryLower.includes('forno') && recipe.istruzioni.toLowerCase().includes('forno')) score += 2;
         if (queryLower.includes('padella') && recipe.istruzioni.toLowerCase().includes('padella')) score += 2;
-        if (queryLower.includes('semplice') && recipe.difficolta === 'facile') score += 2;
+        if (queryLower.includes('semplice') && recipe.difficolta === 'facile') score += 1;
 
         // Bonus per parole chiave
         if (queryLower.includes('light') && recipe.kcal < 350) score += 2;
-        if (queryLower.includes('proteico') && recipe.kcal > 350) score += 2;
-        if (queryLower.includes('sano') && recipe.tipo !== 'carne') score += 2;
+        if (queryLower.includes('sano') && recipe.tipo !== 'carne') score += 1;
 
         return { ...recipe, matchScore: score };
       })
